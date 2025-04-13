@@ -117,9 +117,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{isAdmin ? 'Family' : 'Personal'} Finance Dashboard</h1>
+      <h1 className="text-2xl md:text-3xl font-bold">{isAdmin ? 'Family' : 'Personal'} Finance Dashboard</h1>
       
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
@@ -151,18 +151,18 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <Card className="col-span-3">
+      <Card>
         <CardHeader>
           <CardTitle>Financial Overview</CardTitle>
           <Tabs defaultValue="month" onValueChange={setTimeframe}>
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="month">Monthly</TabsTrigger>
               <TabsTrigger value="quarter">Quarterly</TabsTrigger>
               <TabsTrigger value="year">Yearly</TabsTrigger>
             </TabsList>
           </Tabs>
         </CardHeader>
-        <CardContent className="h-96">
+        <CardContent className="h-[300px] md:h-96">
           <FinancialChart data={chartData} timeframe={timeframe} />
         </CardContent>
       </Card>

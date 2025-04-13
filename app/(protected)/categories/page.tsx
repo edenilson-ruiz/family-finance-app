@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { CategoryForm } from "@/components/category-form"
 import { Plus, Edit, Trash2 } from "lucide-react"
 
@@ -111,11 +111,11 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Categories</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold">Categories</h1>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingCategory(null)}>
+            <Button onClick={() => setEditingCategory(null)} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Category
             </Button>
@@ -123,6 +123,9 @@ export default function CategoriesPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
+              <DialogDescription>
+                {editingCategory ? "Update the category details below." : "Fill in the category details below."}
+              </DialogDescription>
             </DialogHeader>
             <CategoryForm onSubmit={handleFormSubmit} initialData={editingCategory} />
           </DialogContent>
@@ -146,7 +149,7 @@ export default function CategoriesPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {categories.map((category) => (
                 <div key={category.id} className="flex items-center justify-between rounded-lg border p-4">
                   <div className="flex items-center gap-3">

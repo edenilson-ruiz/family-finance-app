@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { UserForm } from "@/components/user-form"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
@@ -122,11 +122,11 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Users Management</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold">Users Management</h1>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingUser(null)}>
+            <Button onClick={() => setEditingUser(null)} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add User
             </Button>
@@ -134,6 +134,9 @@ export default function UsersPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingUser ? "Edit User" : "Add User"}</DialogTitle>
+              <DialogDescription>
+                {editingUser ? "Update the user details below." : "Fill in the user details below."}
+              </DialogDescription>
             </DialogHeader>
             <UserForm onSubmit={handleFormSubmit} initialData={editingUser} />
           </DialogContent>
@@ -161,24 +164,24 @@ export default function UsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead className="hidden sm:table-cell">Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead className="hidden sm:table-cell">Role</TableHead>
+                    <TableHead className="hidden sm:table-cell">Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((u) => (
                     <TableRow key={u.id}>
-                      <TableCell>{u.full_name || "N/A"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{u.full_name || "N/A"}</TableCell>
                       <TableCell>{u.email}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge variant={u.is_admin ? "default" : "outline"}>
                           {u.is_admin ? "Super Admin" : "User"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{format(new Date(u.created_at), "MMM dd, yyyy")}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{format(new Date(u.created_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(u)}>

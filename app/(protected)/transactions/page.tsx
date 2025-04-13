@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { TransactionForm } from "@/components/transaction-form"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
@@ -303,16 +303,16 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Transactions</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold">Transactions</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV}>
+          <Button variant="outline" onClick={handleExportCSV} className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
           <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger asChild>
-              <Button onClick={() => setEditingTransaction(null)}>
+              <Button onClick={() => setEditingTransaction(null)} className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Transaction
               </Button>
@@ -320,6 +320,9 @@ export default function TransactionsPage() {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>{editingTransaction ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
+                <DialogDescription>
+                  {editingTransaction ? "Update the transaction details below." : "Fill in the transaction details below."}
+                </DialogDescription>
               </DialogHeader>
               <TransactionForm categories={categories} onSubmit={handleFormSubmit} initialData={editingTransaction} />
             </DialogContent>
@@ -331,13 +334,13 @@ export default function TransactionsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <CardTitle>Recent Transactions</CardTitle>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Search description..."
                   value={tempSearchParams.description}
                   onChange={(e) => handleTempSearch("description", e.target.value)}
-                  className="max-w-xs"
+                  className="w-full"
                 />
                 <Search className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -368,7 +371,7 @@ export default function TransactionsPage() {
                 <DateRangePicker
                   value={tempSearchParams.dateRange.from ? {
                     from: tempSearchParams.dateRange.from,
-                    to: tempSearchParams.dateRange.to
+                    to: tempSearchParams.dateRange.to || undefined
                   } : undefined}
                   onChange={(range) => handleTempSearch("dateRange", {
                     from: range?.from || null,
@@ -400,40 +403,37 @@ export default function TransactionsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
+                      <TableHead className="hidden sm:table-cell">Date</TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Category</TableHead>
-                      {isAdmin && <TableHead>User</TableHead>}
+                      <TableHead className="hidden sm:table-cell">Category</TableHead>
+                      {isAdmin && <TableHead className="hidden sm:table-cell">User</TableHead>}
                       <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead className="hidden sm:table-cell">Type</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {transactions.map((transaction) => (
                       <TableRow key={transaction.id}>
-                        <TableCell>{transaction.date}</TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          {formatLocalDate(transaction.date)}
+                        </TableCell>
                         <TableCell>{transaction.description}</TableCell>
-                        <TableCell>
-                          {transaction.categories ? (
-                            <Badge
-                              style={{
-                                backgroundColor: transaction.categories.color,
-                                color: "#fff",
-                              }}
-                            >
-                              {transaction.categories.name}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Uncategorized</Badge>
-                          )}
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="outline" style={{ backgroundColor: transaction.categories?.color }}>
+                            {transaction.categories?.name}
+                          </Badge>
                         </TableCell>
                         {isAdmin && (
-                          <TableCell>{transaction.profiles?.full_name || transaction.profiles?.email}</TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            {transaction.profiles?.full_name || transaction.profiles?.email}
+                          </TableCell>
                         )}
-                        <TableCell className="font-medium">${Number.parseFloat(transaction.amount).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge variant={transaction.type === "income" ? "default" : "destructive"}>
+                        <TableCell className={`font-medium ${transaction.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                          ${Number.parseFloat(transaction.amount).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant={transaction.type === 'income' ? 'default' : 'destructive'}>
                             {transaction.type}
                           </Badge>
                         </TableCell>
