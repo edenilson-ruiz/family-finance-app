@@ -19,10 +19,6 @@ async function initializeDatabase() {
     process.exit(1)
   }
 
-  console.log("Admin user created successfully")
-  console.log("Email: admin@givek.com")
-  console.log("Password: secret2108")
-
   process.exit(0)
 }
 

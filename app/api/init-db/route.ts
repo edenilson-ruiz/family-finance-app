@@ -2,13 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminUser } from "@/lib/db-setup"
 
 export async function GET() {
-  try {
-    console.log("Creating admin user...")
-    // const adminCreated = await createAdminUser()
-
-    // if (!adminCreated) {
-    //   return NextResponse.json({ success: false, message: "Failed to create admin user" }, { status: 500 })
-    // }
+  try {    
 
     // Create a response with the initialization data
     const response = NextResponse.json({
