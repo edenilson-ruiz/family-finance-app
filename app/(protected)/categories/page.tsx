@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
@@ -8,68 +8,93 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { CategoryForm } from "@/components/category-form"
 import { Plus, Edit, Trash2 } from "lucide-react"
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-export default function CategoriesPage() {
+
+
+function CategoriesPageContent() {
   const { user } = useAuth()
-  const [categories, setCategories] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [editingCategory, setEditingCategory] = useState<any>(null)  
+  const queryClient = useQueryClient()
 
-  const fetchCategories = async () => {
-    if (!user) return
-
-    try {
-      setLoading(true)
-      const { data, error } = await supabase.from("categories").select("*").eq("user_id", user.id).order("name")
-
+  // Query for fetching categories
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['categories', user?.id],
+    queryFn: async () => {
+      if (!user) return []
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name")
+      
       if (error) throw error
+      return data || []
+    },
+    enabled: !!user,
+    // Si no quieres que refetchee al volver a la ventana
+    refetchOnWindowFocus: false,
+    // Si no quieres que refetchee al reconectar
+    refetchOnReconnect: false,
+    // Para que no intente refetchear cuando el cache está “stale” en el montaje
+    refetchOnMount: false,
+    // Evita que los datos se marquen como ‘stale’ a los pocos minutos
+    staleTime: Infinity,
+    // Mantiene los datos anteriores aunque se haga un nuevo fetch
+    keepPreviousData: true,
+  })
 
-      setCategories(data || [])
-    } catch (error) {
-      console.error("Error fetching categories:", error)
-    } finally {
-      setLoading(false)
+  // Mutation for creating a new category
+  const createMutation = useMutation({
+    mutationFn: async (formData: any) => {
+      const { error } = await supabase.from("categories").insert({
+        name: formData.name,
+        color: formData.color,
+        user_id: user?.id,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', user?.id] })
+      setOpenDialog(false)
+      setEditingCategory(null)
     }
-  }
+  })
 
-  useEffect(() => {
-    let mounted = true
-
-    const initializeData = async () => {
-      if (user && mounted) {
-        try {
-          setLoading(true)
-          await fetchCategories()
-        } catch (error) {
-          console.error("Error initializing data:", error)
-        } finally {
-          if (mounted) {
-            setLoading(false)
-          }
-        }
-      }
+  // Mutation for updating a category
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, formData }: { id: string, formData: any }) => {
+      const { error } = await supabase
+        .from("categories")
+        .update({
+          name: formData.name,
+          color: formData.color,
+        })
+        .eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', user?.id] })
+      setOpenDialog(false)
+      setEditingCategory(null)
     }
+  })
 
-    initializeData()
-
-    return () => {
-      mounted = false
+  // Mutation for deleting a category
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("categories").delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', user?.id] })
     }
-  }, [user])
+  })
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this category?")) return
-
-    try {
-      const { error } = await supabase.from("categories").delete().eq("id", id)
-
-      if (error) throw error
-
-      setCategories(categories.filter((c) => c.id !== id))
-    } catch (error) {
-      console.error("Error deleting category:", error)
-    }
+    deleteMutation.mutate(id)
   }
 
   const handleEdit = (category: any) => {
@@ -78,34 +103,12 @@ export default function CategoriesPage() {
   }
 
   const handleFormSubmit = async (formData: any) => {
-    try {
-      if (editingCategory) {
-        // Update existing category
-        const { error } = await supabase
-          .from("categories")
-          .update({
-            name: formData.name,
-            color: formData.color,
-          })
-          .eq("id", editingCategory.id)
-
-        if (error) throw error
-      } else {
-        // Create new category
-        const { error } = await supabase.from("categories").insert({
-          name: formData.name,
-          color: formData.color,
-          user_id: user?.id,
-        })
-
-        if (error) throw error
-      }
-
-      setOpenDialog(false)
-      setEditingCategory(null)
-      fetchCategories()
-    } catch (error) {
-      console.error("Error saving category:", error)
+    if (editingCategory) {
+      // Update existing category
+      updateMutation.mutate({ id: editingCategory.id, formData })
+    } else {
+      // Create new category
+      createMutation.mutate(formData)
     }
   }
 
@@ -127,7 +130,11 @@ export default function CategoriesPage() {
                 {editingCategory ? "Update the category details below." : "Fill in the category details below."}
               </DialogDescription>
             </DialogHeader>
-            <CategoryForm onSubmit={handleFormSubmit} initialData={editingCategory} />
+            <CategoryForm 
+              onSubmit={handleFormSubmit} 
+              initialData={editingCategory} 
+              isSubmitting={createMutation.isPending || updateMutation.isPending}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -137,7 +144,7 @@ export default function CategoriesPage() {
           <CardTitle>Your Categories</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
@@ -160,7 +167,12 @@ export default function CategoriesPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(category)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(category.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDelete(category.id)}
+                      disabled={deleteMutation.isPending}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -171,5 +183,15 @@ export default function CategoriesPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+const queryClient = new QueryClient()
+
+export default function CategoriesPage() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CategoriesPageContent />
+    </QueryClientProvider>
   )
 }

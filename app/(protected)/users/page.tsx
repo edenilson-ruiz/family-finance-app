@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
@@ -12,69 +12,56 @@ import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { Plus, Edit, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 export default function UsersPage() {
   const { user, isAdmin } = useAuth()
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const router = useRouter()
+  const queryClient = useQueryClient()
 
-  const fetchUsers = async () => {
-    if (!user || !isAdmin) return
+  // Redirect non-admin users
+  if (!isAdmin) {
+    router.push("/dashboard")
+    return null
+  }
 
-    setLoading(true)
-    try {
-      const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false })
+  // Query for fetching users
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      if (!user || !isAdmin) return []
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false })
 
       if (error) throw error
+      return data || []
+    },
+    enabled: !!user && isAdmin
+  })
 
-      setUsers(data || [])
-    } catch (error) {
-      console.error("Error fetching users:", error)
-    } finally {
-      setLoading(false)
+  // Mutation for deleting a user
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.auth.admin.deleteUser(id)
+      if (error) throw error
+      return id
+    },
+    onSuccess: (deletedId) => {
+      queryClient.setQueryData(['users'], (old: any[] = []) => 
+        old.filter(u => u.id !== deletedId)
+      )
+      queryClient.invalidateQueries({ queryKey: ['users'] })
     }
-  }
+  })
 
-  useEffect(() => {
-    if (!isAdmin) {
-      router.push("/dashboard")
-      return
-    }
-
-    fetchUsers()
-  }, [user, isAdmin, router])
-
-  const handleDelete = async (id: string) => {
-    if (id === user?.id) {
-      alert("You cannot delete your own account")
-      return
-    }
-
-    if (!confirm("Are you sure you want to delete this user?")) return
-
-    try {
-      // Delete user from auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(id)
-
-      if (authError) throw authError
-
-      // Profile will be deleted by cascade
-      setUsers(users.filter((u) => u.id !== id))
-    } catch (error) {
-      console.error("Error deleting user:", error)
-    }
-  }
-
-  const handleEdit = (user: any) => {
-    setEditingUser(user)
-    setOpenDialog(true)
-  }
-
-  const handleFormSubmit = async (formData: any) => {
-    try {
+  // Mutation for creating/updating a user
+  const saveUserMutation = useMutation({
+    mutationFn: async (formData: any) => {
       if (editingUser) {
         // Update existing user
         const { error } = await supabase
@@ -86,6 +73,7 @@ export default function UsersPage() {
           .eq("id", editingUser.id)
 
         if (error) throw error
+        return { ...editingUser, ...formData }
       } else {
         // Create new user
         const { data, error } = await supabase.auth.admin.createUser({
@@ -106,18 +94,33 @@ export default function UsersPage() {
           .eq("id", data.user.id)
 
         if (profileError) throw profileError
+        return data.user
       }
-
+    },
+    onSuccess: () => {
       setOpenDialog(false)
       setEditingUser(null)
-      fetchUsers()
-    } catch (error) {
-      console.error("Error saving user:", error)
+      queryClient.invalidateQueries({ queryKey: ['users'] })
     }
+  })
+
+  const handleDelete = async (id: string) => {
+    if (id === user?.id) {
+      alert("You cannot delete your own account")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this user?")) return
+    deleteUserMutation.mutate(id)
   }
 
-  if (!isAdmin) {
-    return null
+  const handleEdit = (user: any) => {
+    setEditingUser(user)
+    setOpenDialog(true)
+  }
+
+  const handleFormSubmit = (formData: any) => {
+    saveUserMutation.mutate(formData)
   }
 
   return (
@@ -138,7 +141,11 @@ export default function UsersPage() {
                 {editingUser ? "Update the user details below." : "Fill in the user details below."}
               </DialogDescription>
             </DialogHeader>
-            <UserForm onSubmit={handleFormSubmit} initialData={editingUser} />
+            <UserForm 
+              onSubmit={handleFormSubmit} 
+              initialData={editingUser} 
+              isSubmitting={saveUserMutation.isPending}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -148,7 +155,7 @@ export default function UsersPage() {
           <CardTitle>All Users</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>
@@ -191,7 +198,7 @@ export default function UsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(u.id)}
-                            disabled={u.id === user?.id}
+                            disabled={u.id === user?.id || deleteUserMutation.isPending}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
