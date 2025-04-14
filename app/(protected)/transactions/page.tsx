@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { TransactionForm } from "@/components/transaction-form"
 import { Badge } from "@/components/ui/badge"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { Plus, Download, Edit, Trash2, Search, Filter } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -35,7 +35,7 @@ interface SearchParams {
 }
 
 const formatLocalDate = (dateString: string) => {
-  const date = new Date(dateString)
+  const date = parseISO(dateString)
   return format(date, "MMM dd, yyyy")
 }
 
@@ -146,9 +146,9 @@ function TransactionsPageContent() {
     refetchOnWindowFocus: false,
     // Si no quieres que refetchee al reconectar
     refetchOnReconnect: false,
-    // Para que no intente refetchear cuando el cache está “stale” en el montaje
+    // Para que no intente refetchear cuando el cache está "stale" en el montaje
     refetchOnMount: false,
-    // Evita que los datos se marquen como ‘stale’ a los pocos minutos
+    // Evita que los datos se marquen como 'stale' a los pocos minutos
     staleTime: Infinity,
     // Mantiene los datos anteriores aunque se haga un nuevo fetch
     keepPreviousData: true, // Esperar 1 segundo entre reintentos
@@ -177,9 +177,9 @@ function TransactionsPageContent() {
     refetchOnWindowFocus: false,
     // Si no quieres que refetchee al reconectar
     refetchOnReconnect: false,
-    // Para que no intente refetchear cuando el cache está “stale” en el montaje
+    // Para que no intente refetchear cuando el cache está "stale" en el montaje
     refetchOnMount: false,
-    // Evita que los datos se marquen como ‘stale’ a los pocos minutos
+    // Evita que los datos se marquen como 'stale' a los pocos minutos
     staleTime: Infinity,
     // Mantiene los datos anteriores aunque se haga un nuevo fetch
     keepPreviousData: true,
@@ -253,15 +253,7 @@ function TransactionsPageContent() {
 
   const transactions = transactionsData?.data || []
   const totalPages = Math.ceil((transactionsData?.count || 0) / itemsPerPage)
-  const loading = isLoadingTransactions;
-
-  // Mejorar el debugging
-  console.log({
-    isLoadingTransactions, 
-    isFetching, 
-    dataExists: !!transactionsData?.data?.length,
-    userData: !!user
-  });
+  const loading = isLoadingTransactions; 
   
   
   const handleExportCSV = () => {
