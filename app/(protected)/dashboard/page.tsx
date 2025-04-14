@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { CategoryStackedChart } from "@/components/category-stacked-chart"
 
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
@@ -62,7 +63,7 @@ export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id, isAdmin, selectedMonths],
     queryFn: async () => {
-      if (!user) return { summary: { totalIncome: 0, totalExpense: 0, balance: 0 }, chartData: [] };
+      if (!user) return { summary: { totalIncome: 0, totalExpense: 0, balance: 0 }, chartData: [], categoryData: [] };
 
       // Parse selected months into date ranges
       const dateRanges = selectedMonths.map(monthStr => {
@@ -76,7 +77,10 @@ export default function DashboardPage() {
       });
       
       // Fetch summary data for selected date ranges
-      let query = supabase.from('transactions').select('type, amount, date');
+      let query = supabase.from('transactions').select(`
+        type, amount, date, category_id,
+        categories (id, name, color)
+      `);
       
       if (!isAdmin) {
         query = query.eq('user_id', user.id);
@@ -118,7 +122,10 @@ export default function DashboardPage() {
       
       let chartQuery = supabase
         .from('transactions')
-        .select('amount, type, date')
+        .select(`
+          amount, type, date, category_id,
+          categories (id, name, color)
+        `)
         .gte('date', startDate.toISOString().split('T')[0]);
         
       if (!isAdmin) {
@@ -156,7 +163,32 @@ export default function DashboardPage() {
         };
       });
       
-      return { summary, chartData: monthlyData };
+      // Process category data by month for expenses
+      const categoryMonthlyData = Array(12).fill(0).map((_, i) => {
+        const month = (currentMonth - 11 + i + 12) % 12;
+        const year = currentYear - (month > currentMonth ? 1 : 0);
+        const monthName = new Date(year, month, 1).toLocaleString('default', { month: 'short' });
+        
+        const monthTransactions = chartData.filter(t => {
+          const date = new Date(t.date);
+          return date.getMonth() === month && date.getFullYear() === year && t.type === 'expense';
+        });
+        
+        // Group expenses by category
+        const categorized = monthTransactions.reduce((acc, t) => {
+          // Get category name from the joined categories table
+          const categoryName = t.categories?.name || 'Uncategorized';
+          acc[categoryName] = (acc[categoryName] || 0) + Number.parseFloat(t.amount);
+          return acc;
+        }, {});
+        
+        return {
+          name: monthName,
+          ...categorized
+        };
+      });
+      
+      return { summary, chartData: monthlyData, categoryData: categoryMonthlyData };
     },
     enabled: !!user,
   });
@@ -171,6 +203,7 @@ export default function DashboardPage() {
 
   const summary = data?.summary || { totalIncome: 0, totalExpense: 0, balance: 0 };
   const chartData = data?.chartData || [];
+  const categoryData = data?.categoryData || [];
 
   return (
     <div className="space-y-6">
@@ -297,6 +330,16 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="h-[300px] md:h-96">
           <FinancialChart data={chartData} timeframe={timeframe} />
+        </CardContent>
+      </Card>
+      
+      {/* New Card for Category Expenses Stacked Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Expense Categories</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[300px] md:h-96">
+          <CategoryStackedChart data={categoryData} />
         </CardContent>
       </Card>
     </div>
